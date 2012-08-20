@@ -139,10 +139,8 @@ func (client *Client) Connect() error {
     return err
 }
 
-func (client *Client) Disconnect() error {
-    var err error
-    client.conn, err = openConn(client.Remote, client.Psw, client.Db)
-    return err
+func (client *Client) Disconnect() {
+    client.conn = nil
 }
 
 // General Commands
