@@ -13,13 +13,13 @@ func clientInit() {
     client.Db = 13
 
     if err := client.Connect(); err != nil {
-        fmt.Println(err)
+        fmt.Println("Init: " + err.Error())
     }
 }
 
 func TestSet() {
     if err := client.Set("foo", "bar"); err != nil {
-        fmt.Println(err)
+        fmt.Println("SET" + err.Error())
     }
 }
 
@@ -28,21 +28,25 @@ func TestGet() {
     str2, err := client.Get("foo")
 
     if err != nil {
-        fmt.Println(err)
+        fmt.Println("GET" + err.Error())
     }
-    if str2 != nil && str2 != nil && str1 != *str2 {
+    if str1 != str2 {
+        fmt.Println("GET:")
         fmt.Println("str1:", str1)
-        fmt.Println("str2:", *str2)
+        fmt.Println("str2:", str2)
         fmt.Println("str unequal")
+        fmt.Println("----------------")
     }
 }
 
 func TestKeys() {
-    str, err := client.Keys("*")
+    str, err := client.Keys("nil*")
     if err != nil {
-        fmt.Println(err)
+        fmt.Println("KEYS" + err.Error())
     }
+    fmt.Println("KEYS:")
     fmt.Println(str)
+    fmt.Println("----------------")
 }
 
 func TestHmset() {
@@ -50,16 +54,17 @@ func TestHmset() {
         "key1" : "value1",
         "key2" : "value2",
     }
-    if err := client.Hmset("hmset", &m); err != nil {
-        fmt.Println(err)
+    if err := client.Hmset("hmset", m); err != nil {
+        fmt.Println("HMSET" + err.Error())
     }
 }
 
 func TestHmget() {
-    res, err := client.Hmget("hmset", "key1", "key2")
+    res, err := client.Hmget("hmset", "key9", "key2")
     if err != nil {
-        fmt.Println(err)
+        fmt.Println(err.Error())
     }
+    fmt.Println("HMGET:")
     for _, pstr := range res {
         if pstr != nil {
             fmt.Printf("%s ", *pstr)
@@ -68,22 +73,27 @@ func TestHmget() {
         }
     }
     fmt.Println()
+    fmt.Println("----------------")
 }
 
 func TestSadd() {
     num, err := client.Sadd("sadd", "a", "b", "c", "d", "e")
     if err != nil {
-        fmt.Println(err)
+        fmt.Println("SADD" + err.Error())
     }
+    fmt.Println("SADD:")
     fmt.Println(num)
+    fmt.Println("----------------")
 }
 
 func TestSmembers() {
     str, err := client.Smembers("sadd")
     if err != nil {
-        fmt.Println(err)
+        fmt.Println(err.Error())
     }
+    fmt.Println("SMEMBERS:")
     fmt.Println(str)
+    fmt.Println("----------------")
 }
 
 func main() {

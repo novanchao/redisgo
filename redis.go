@@ -49,24 +49,6 @@ func openConn(remote string, psw string, db int) (net.Conn, error) {
     return conn, err
 }
 
-func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
-    cmd := strings.Join(args, " ")
-    if conn == nil {
-        return nil, RedisError("connection is not created yet!")
-    }
-
-    _, err := conn.Write([]byte(cmd + "\r\n"))
-    if err != nil {
-        return nil, err
-    }
-
-    r, err := readResponse(conn)
-    if err != nil {
-        return nil, err
-    }
-    return r, nil
-}
-
 func readResponse(conn net.Conn) (interface{}, error) {
     var data []byte = make([]byte, bufSize)
 
@@ -81,7 +63,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
     if line[0] == '+' {
         res := line[1:]
-        return &res, nil
+        return res, nil
     }
 
     if strings.HasPrefix(line, "-ERR ") {
@@ -101,7 +83,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
         list := strings.Split(line, "\r\n") // fmt.Printf("list: %v", list) // Debug
         res := list[1]
-        return &res, nil
+        return res, nil
     }
 
     if line[0] == '*' {
@@ -133,6 +115,24 @@ func readResponse(conn net.Conn) (interface{}, error) {
     return nil, err
 }
 
+func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
+    cmd := strings.Join(args, " ")
+    if conn == nil {
+        return nil, RedisError("connection is not created yet!")
+    }
+
+    _, err := conn.Write([]byte(cmd + "\r\n"))
+    if err != nil {
+        return nil, err
+    }
+
+    r, err := readResponse(conn)
+    if err != nil {
+        return nil, err
+    }
+    return r, nil
+}
+
 func (client *Client) Connect() error {
     var err error
     client.conn, err = openConn(client.Remote, client.Psw, client.Db)
@@ -154,16 +154,13 @@ func (client *Client) Set(key string, value string) error {
     return err
 }
 
-func (client *Client) Get(key string) (*string, error) {
+func (client *Client) Get(key string) (string, error) {
     r, err := sendRecv(client.conn, "GET", key)
-    if err != nil {
-        return nil, err
+    if err != nil || r == nil{
+        return "nil", err
     }
 
-    var res *string
-    if r != nil {
-        res = r.(*string)
-    }
+    var res string = r.(string)
     return res, nil
 }
 
@@ -173,6 +170,9 @@ func (client *Client) Keys(arg string) ([]string, error) {
         return nil, err
     }
 
+    if r == nil {
+        return make([]string, 0), nil
+    }
     res := r.([]*string)
     strs := make([]string, len(res))
     for i, _ := range res {
@@ -181,9 +181,9 @@ func (client *Client) Keys(arg string) ([]string, error) {
     return strs, nil
 }
 
-func (client *Client) Hmset(key string, arg *map[string]string) (error) {
+func (client *Client) Hmset(key string, arg map[string]string) (error) {
     cmd := "HMSET " + key
-    for k, v := range *arg {
+    for k, v := range arg {
         cmd += " " + k + " " + v
     }
 
