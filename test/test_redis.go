@@ -12,7 +12,7 @@ func clientInit() {
     client.Psw = "redis"
     client.Db = 13
 
-    if err := client.CreateConn(); err != nil {
+    if err := client.Connect(); err != nil {
         fmt.Println(err)
     }
 }
@@ -88,6 +88,7 @@ func TestSmembers() {
 
 func main() {
     clientInit()
+    defer client.Disconnect()
 
     TestSet()
     TestGet()

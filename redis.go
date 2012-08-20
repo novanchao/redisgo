@@ -133,7 +133,13 @@ func readResponse(conn net.Conn) (interface{}, error) {
     return nil, err
 }
 
-func (client *Client) CreateConn() error {
+func (client *Client) Connect() error {
+    var err error
+    client.conn, err = openConn(client.Remote, client.Psw, client.Db)
+    return err
+}
+
+func (client *Client) Disconnect() error {
     var err error
     client.conn, err = openConn(client.Remote, client.Psw, client.Db)
     return err
