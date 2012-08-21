@@ -65,12 +65,8 @@ func TestHmget() {
         fmt.Println(err.Error())
     }
     fmt.Println("HMGET:")
-    for _, pstr := range res {
-        if pstr != nil {
-            fmt.Printf("%s ", *pstr)
-        } else {
-            fmt.Printf("(nil) ")
-        }
+    for _, str := range res {
+        fmt.Printf("%s ", str)
     }
     fmt.Println()
     fmt.Println("----------------")

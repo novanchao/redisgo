@@ -18,9 +18,9 @@ type Client struct {
     conn net.Conn
 }
 
-type RedisError string
+type RError string
 
-func (err RedisError) Error() string {
+func (err RError) Error() string {
     return "REDIS ERROR: " + string(err)
 }
 
@@ -68,7 +68,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
     if strings.HasPrefix(line, "-ERR ") {
         errmsg := line[5:]
-        return nil, RedisError(errmsg)
+        return nil, RError(errmsg)
     }
 
     if line[0] == ':' {
@@ -95,30 +95,30 @@ func readResponse(conn net.Conn) (interface{}, error) {
             return nil, err
         }
         var k int = 0
-        reslice := make([]*string, nsize)
+        reslice := make([]string, nsize)
         // fmt.Println(strconv.Itoa(nsize), strconv.Itoa(len(list))) // debug
         for i := 1; i < len(list); i++ {
             if (strings.HasPrefix(list[i], "$-1")) {
-                // TODO: how to deal with the string who has "$-1"
-                // TODO: need error or not
+                reslice[k] = ""
+                k += 1;
                 continue
             }
 
             i += 1
-            reslice[k] = &list[i]
+            reslice[k] = list[i]
             k += 1
         }
         return reslice, nil
     }
 
-    err = RedisError("Unkown reply message") // uncatched type
+    err = RError("Unkown reply message") // uncatched type
     return nil, err
 }
 
 func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
     cmd := strings.Join(args, " ")
     if conn == nil {
-        return nil, RedisError("connection is not created yet!")
+        return nil, RError("connection is not created yet!")
     }
 
     _, err := conn.Write([]byte(cmd + "\r\n"))
@@ -157,11 +157,10 @@ func (client *Client) Set(key string, value string) error {
 func (client *Client) Get(key string) (string, error) {
     r, err := sendRecv(client.conn, "GET", key)
     if err != nil || r == nil{
-        return "nil", err
+        return "", err
     }
 
-    var res string = r.(string)
-    return res, nil
+    return r.(string), nil
 }
 
 func (client *Client) Keys(arg string) ([]string, error) {
@@ -173,12 +172,8 @@ func (client *Client) Keys(arg string) ([]string, error) {
     if r == nil {
         return make([]string, 0), nil
     }
-    res := r.([]*string)
-    strs := make([]string, len(res))
-    for i, _ := range res {
-        strs[i] = *res[i]
-    }
-    return strs, nil
+    res := r.([]string)
+    return res, nil
 }
 
 func (client *Client) Hmset(key string, arg map[string]string) (error) {
@@ -192,7 +187,7 @@ func (client *Client) Hmset(key string, arg map[string]string) (error) {
     return err
 }
 
-func (client *Client) Hmget(key string, fields ...string) ([]*string, error) {
+func (client *Client) Hmget(key string, fields ...string) ([]string, error) {
     s := []string{"HMGET", key}
     cmd := append(s, fields...)
 
@@ -200,7 +195,11 @@ func (client *Client) Hmget(key string, fields ...string) ([]*string, error) {
     if err != nil {
         return nil, err
     }
-    return r.([]*string), nil
+
+    if r == nil {
+        return make([]string, 0), nil
+    }
+    return r.([]string), nil
 }
 
 func (client *Client) Sadd(key string, members ...string) (int, error) {
@@ -220,11 +219,8 @@ func (client *Client) Smembers(key string) ([]string, error) {
         return nil, err
     }
 
-    res := r.([]*string)
-    strs := make([]string, len(res))
-    for i, _ := range res {
-        strs[i] = *res[i]
+    if r == nil {
+        return make([]string, 0), nil
     }
-    return strs, nil
-
+    return r.([]string), nil
 }
