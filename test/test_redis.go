@@ -18,14 +18,15 @@ func clientInit() {
 }
 
 func TestSet() {
-    if err := client.Set("foo", "bar"); err != nil {
+    if err := client.Set([]byte("foo"), []byte("bar")); err != nil {
         fmt.Println("SET" + err.Error())
     }
 }
 
 func TestGet() {
     str1 := "bar"
-    str2, err := client.Get("foo")
+    byte2, err := client.Get([]byte("foo"))
+    str2 := string(byte2)
 
     if err != nil {
         fmt.Println("GET" + err.Error())
@@ -40,7 +41,7 @@ func TestGet() {
 }
 
 func TestKeys() {
-    str, err := client.Keys("nil*")
+    str, err := client.Keys([]byte("*"))
     if err != nil {
         fmt.Println("KEYS" + err.Error())
     }
@@ -50,30 +51,30 @@ func TestKeys() {
 }
 
 func TestHmset() {
-    m := map[string]string{
-        "key1" : "value1",
-        "key2" : "value2",
+    m := map[string][]byte{
+        "key1" : []byte("value1"),
+        "key2" : []byte("value2"),
     }
-    if err := client.Hmset("hmset", m); err != nil {
+    if err := client.Hmset([]byte("hmset"), m); err != nil {
         fmt.Println("HMSET" + err.Error())
     }
 }
 
 func TestHmget() {
-    res, err := client.Hmget("hmset", "key9", "key2")
+    res, err := client.Hmget([]byte("hmset"), []byte("key9"), []byte("key2"))
     if err != nil {
         fmt.Println(err.Error())
     }
     fmt.Println("HMGET:")
     for _, str := range res {
-        fmt.Printf("%s ", str)
+        fmt.Printf("%s ", string(str))
     }
     fmt.Println()
     fmt.Println("----------------")
 }
 
 func TestSadd() {
-    num, err := client.Sadd("sadd", "a", "b", "c", "d", "e")
+    num, err := client.Sadd([]byte("sadd"), []byte("a"), []byte("b"), []byte("c"), []byte("d"), []byte("e"))
     if err != nil {
         fmt.Println("SADD" + err.Error())
     }
@@ -83,7 +84,7 @@ func TestSadd() {
 }
 
 func TestSmembers() {
-    str, err := client.Smembers("sadd")
+    str, err := client.Smembers([]byte("sadd"))
     if err != nil {
         fmt.Println(err.Error())
     }

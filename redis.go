@@ -4,7 +4,8 @@ import (
     // "fmt"
     "net"
     "strconv"
-    "strings"
+    "bytes"
+    "encoding/binary"
 )
 
 const (
@@ -54,74 +55,72 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
     n, err := conn.Read(data)
     if err != nil {
-        return nil, err
+        return make([]byte, 0), err
     }
 
-    line := strings.TrimSpace(string(data[0:n]))
-    // fmt.Println("line:", line) // Debug
-    // fmt.Println("len(line):", len(line)) // Debug
+    line := bytes.TrimSpace(data[0:n])
 
     if line[0] == '+' {
         res := line[1:]
         return res, nil
     }
 
-    if strings.HasPrefix(line, "-ERR ") {
+    if bytes.HasPrefix(line, []byte("-ERR")) {
         errmsg := line[5:]
         return nil, RError(errmsg)
     }
 
     if line[0] == ':' {
-        num, err := strconv.Atoi(line[1:len(line)])
+        num, err := strconv.Atoi(string(line[1:]))
         return num, err
     }
 
     if line[0] == '$' {
-        if strings.HasPrefix(line, "$-1") {
-            return nil, nil
+        if bytes.HasPrefix(line, []byte("$-1")) {
+            return make([]byte, 0), nil
         }
 
-        list := strings.Split(line, "\r\n") // fmt.Printf("list: %v", list) // Debug
+        list := bytes.Split(line, []byte("\r\n")) // fmt.Printf("list: %v", list) // Debug
         res := list[1]
         return res, nil
     }
 
     if line[0] == '*' {
-        list := strings.Split(line, "\r\n")
+        list := bytes.Split(line, []byte("\r\n"))
         // fmt.Printf("list: %v\n", list) // debug
 
-        nsize, err := strconv.Atoi(list[0][1:])
+        nsize, err := strconv.Atoi(string(list[0][1:]))
         if err != nil {
-            return nil, err
+            return make([]byte, 0), err
         }
+
+        rbyte := make([][]byte, nsize)
         var k int = 0
-        reslice := make([]string, nsize)
-        // fmt.Println(strconv.Itoa(nsize), strconv.Itoa(len(list))) // debug
         for i := 1; i < len(list); i++ {
-            if (strings.HasPrefix(list[i], "$-1")) {
-                reslice[k] = ""
+            if (bytes.HasPrefix(list[i], []byte("$-1"))) {
                 k += 1;
                 continue
             }
 
             i += 1
-            reslice[k] = list[i]
+            rbyte[k] = list[i]
             k += 1
         }
-        return reslice, nil
+        return rbyte, nil
     }
 
     err = RError("Unkown reply message") // uncatched type
-    return nil, err
+    return make([]byte, 0), err
 }
 
-func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
-    cmd := strings.Join(args, " ")
+func sendRecv(conn net.Conn, args ...[]byte) (interface{}, error) {
     if conn == nil {
         return nil, RError("connection is not created yet!")
     }
 
-    _, err := conn.Write([]byte(cmd + "\r\n"))
+    c := bytes.Join(args, []byte(" "))
+    c = append(c, []byte("\r\n")...)
+    _, err := conn.Write(c)
     if err != nil {
         return nil, err
     }
@@ -145,82 +144,79 @@ func (client *Client) Disconnect() {
 
 // General Commands
 func (client *Client) Select(db int) error {
-    _, err := sendRecv(client.conn, "SELECT", strconv.Itoa(db))
+    bin := make([]byte, 4)
+    binary.BigEndian.PutUint32(bin, uint32(db))
+    _, err := sendRecv(client.conn, []byte("SELECT"), bin)
     return err
 }
 
-func (client *Client) Set(key string, value string) error {
-    _, err := sendRecv(client.conn, "SET", key, value)
+func (client *Client) Set(key []byte, value []byte) error {
+    _, err := sendRecv(client.conn, []byte("SET"), key, value)
     return err
 }
 
-func (client *Client) Get(key string) (string, error) {
-    r, err := sendRecv(client.conn, "GET", key)
-    if err != nil || r == nil{
-        return "", err
+func (client *Client) Get(key []byte) ([]byte, error) {
+    r, err := sendRecv(client.conn, []byte("GET"), key)
+    if err != nil {
+        return nil, err
     }
 
-    return r.(string), nil
+    return r.([]byte), nil
 }
 
-func (client *Client) Keys(arg string) ([]string, error) {
-    r, err := sendRecv(client.conn, "KEYS", arg)
+func (client *Client) Keys(arg []byte) ([][]byte, error) {
+    r, err := sendRecv(client.conn, []byte("KEYS"), arg)
     if err != nil {
         return nil, err
     }
 
     if r == nil {
-        return make([]string, 0), nil
+        return make([][]byte, 0), nil
     }
-    res := r.([]string)
+    res := r.([][]byte)
     return res, nil
 }
 
-func (client *Client) Hmset(key string, arg map[string]string) (error) {
-    cmd := "HMSET " + key
+func (client *Client) Hmset(key []byte, arg map[string][]byte) (error) {
+    c := make([][]byte, 0)
+    c = append(c, []byte("HMSET"), key)
     for k, v := range arg {
-        cmd += " " + k + " " + v
+        c = append(c, []byte(k), v)
     }
 
-    cmd += "\r\n"
-    _, err := sendRecv(client.conn, cmd)
+    c = append(c, []byte("\r\n"))
+    _, err := sendRecv(client.conn, c...)
     return err
 }
 
-func (client *Client) Hmget(key string, fields ...string) ([]string, error) {
-    s := []string{"HMGET", key}
-    cmd := append(s, fields...)
+func (client *Client) Hmget(key []byte, fields ...[]byte) ([][]byte, error) {
+    c := make([][]byte, 0)
+    c = append(c, []byte("HMGET"), key)
+    c = append(c, fields...)
 
-    r, err := sendRecv(client.conn, cmd...)
+    r, err := sendRecv(client.conn, c...)
     if err != nil {
         return nil, err
     }
-
-    if r == nil {
-        return make([]string, 0), nil
-    }
-    return r.([]string), nil
+    return r.([][]byte), nil
 }
 
-func (client *Client) Sadd(key string, members ...string) (int, error) {
-    s := []string{"SADD", key}
-    cmd := append(s, members...)
+func (client *Client) Sadd(key []byte, members ...[]byte) (int, error) {
+    c := make([][]byte, 0)
+    c = append(c, []byte("SADD"), key)
+    c = append(c, members...)
 
-    num, err := sendRecv(client.conn, cmd...)
+    num, err := sendRecv(client.conn, c...)
     if err != nil {
         return 0, err
     }
-    return num.(int), err 
+    return num.(int), err
 }
 
-func (client *Client) Smembers(key string) ([]string, error) {
-    r, err := sendRecv(client.conn, "SMEMBERS", key)
+func (client *Client) Smembers(key []byte) ([][]byte, error) {
+    r, err := sendRecv(client.conn, []byte("SMEMBERS"), key)
     if err != nil {
         return nil, err
     }
-
-    if r == nil {
-        return make([]string, 0), nil
-    }
-    return r.([]string), nil
+    return r.([][]byte), nil
 }
