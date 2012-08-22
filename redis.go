@@ -1,4 +1,4 @@
-package redis
+package redisgo
 
 import (
     // "fmt"
