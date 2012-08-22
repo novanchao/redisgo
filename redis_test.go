@@ -1,16 +1,16 @@
-package redis
+package redis_test
 
 import (
+	"."
 	"fmt"
-	// "runtime"
-	"redisgo"
+	"runtime"
 	"testing"
 )
 
 var cli redis.Client
 
 func init() {
-	// runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(1)
 	cli.Remote = "127.0.0.1:6379"
 	// cli.Psw = "passwd"
 	cli.Db = 13
