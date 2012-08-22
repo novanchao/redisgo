@@ -1,11 +1,10 @@
 package redis
 
 import (
-	// "fmt"
 	"bytes"
-	"encoding/binary"
 	"net"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -81,7 +80,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 		}
 
 		list := bytes.Split(line, []byte("\r\n")) // fmt.Printf("list: %v", list) // Debug
-		res := list[1]
+		res := unquote(list[1])
 		return res, nil
 	}
 
@@ -103,7 +102,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 			}
 
 			i += 1
-			rbyte[k] = list[i]
+			rbyte[k] = unquote(list[i])
 			k += 1
 		}
 		return rbyte, nil
@@ -113,14 +112,16 @@ func readResponse(conn net.Conn) (interface{}, error) {
 	return make([]byte, 0), err
 }
 
-func sendRecv(conn net.Conn, args ...[]byte) (interface{}, error) {
+func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
 	if conn == nil {
 		return nil, RError("connection is not created yet!")
 	}
 
-	c := bytes.Join(args, []byte(" "))
-	c = append(c, []byte("\r\n")...)
-	_, err := conn.Write(c)
+	c := strings.Join(args, " ")
+	c += "\r\n"
+	// fmt.Println(c)
+
+	_, err := conn.Write([]byte(c))
 	if err != nil {
 		return nil, err
 	}
@@ -142,21 +143,54 @@ func (client *Client) Disconnect() {
 	client.conn = nil
 }
 
+func quote(in []byte) []byte {
+	var out []byte
+	for _, i := range in {
+		if i == 0x20 {
+			out = append(out, 0x5C)
+			out = append(out, 0x74)
+		} else if i == 0x5C {
+			out = append(out, 0x5C, 0x5C)
+		} else {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+func unquote(in []byte) []byte {
+	var out []byte
+	lin := len(in)
+
+	for n := 0; n < lin; n++ {
+		if in[n] == 0x5C {
+			if n+1 < len(in) && in[n+1] == 0x5C {
+				out = append(out, 0x5C)
+				n++
+			} else if n+1 < len(in) && in[n+1] == 0x74 {
+				out = append(out, 0x20)
+				n++
+			}
+		} else {
+			out = append(out, in[n])
+		}
+	}
+	return out
+}
+
 // General Commands
 func (client *Client) Select(db int) error {
-	bin := make([]byte, 4)
-	binary.BigEndian.PutUint32(bin, uint32(db))
-	_, err := sendRecv(client.conn, []byte("SELECT"), bin)
+	_, err := sendRecv(client.conn, "SELECT", strconv.Itoa(db))
 	return err
 }
 
 func (client *Client) Set(key []byte, value []byte) error {
-	_, err := sendRecv(client.conn, []byte("SET"), key, value)
+	_, err := sendRecv(client.conn, "SET", string(quote(key)), string(quote(value)))
 	return err
 }
 
 func (client *Client) Get(key []byte) ([]byte, error) {
-	r, err := sendRecv(client.conn, []byte("GET"), key)
+	r, err := sendRecv(client.conn, "GET", string(quote(key)))
 	if err != nil {
 		return nil, err
 	}
@@ -165,56 +199,54 @@ func (client *Client) Get(key []byte) ([]byte, error) {
 }
 
 func (client *Client) Keys(arg []byte) ([][]byte, error) {
-	r, err := sendRecv(client.conn, []byte("KEYS"), arg)
+	r, err := sendRecv(client.conn, "KEYS", string(quote(arg)))
 	if err != nil {
 		return nil, err
 	}
 
-	if r == nil {
-		return make([][]byte, 0), nil
-	}
 	res := r.([][]byte)
 	return res, nil
 }
 
 func (client *Client) Hmset(key []byte, arg map[string][]byte) error {
-	c := make([][]byte, 0)
-	c = append(c, []byte("HMSET"), key)
+	c := make([]string, 0)
+	c = append(c, "HMSET", string(quote(key)))
 	for k, v := range arg {
-		c = append(c, []byte(k), v)
+		c = append(c, k, string(quote(v)))
 	}
 
-	c = append(c, []byte("\r\n"))
+	c = append(c, "\r\n")
 	_, err := sendRecv(client.conn, c...)
 	return err
 }
 
-func (client *Client) Hmget(key []byte, fields ...[]byte) ([][]byte, error) {
-	c := make([][]byte, 0)
-	c = append(c, []byte("HMGET"), key)
-	c = append(c, fields...)
+func (client *Client) Hmget(key []byte, field ...[]byte) ([][]byte, error) {
+	c := make([]string, 0)
+	c = append(c, "HMGET", string(quote(key)))
+	for _, f := range field {
+		c = append(c, string(quote(f)))
+	}
 
 	r, err := sendRecv(client.conn, c...)
 	if err != nil {
-		return nil, err
+		return make([][]byte, 0), err
 	}
 	return r.([][]byte), nil
 }
 
 func (client *Client) Sadd(key []byte, members ...[]byte) (int, error) {
-	c := make([][]byte, 0)
-	c = append(c, []byte("SADD"), key)
-	c = append(c, members...)
+	c := make([]string, 0)
+	c = append(c, "SADD", string(quote(key)))
+	for _, m := range members {
+		c = append(c, string(quote(m)))
+	}
 
 	num, err := sendRecv(client.conn, c...)
-	if err != nil {
-		return 0, err
-	}
 	return num.(int), err
 }
 
 func (client *Client) Smembers(key []byte) ([][]byte, error) {
-	r, err := sendRecv(client.conn, []byte("SMEMBERS"), key)
+	r, err := sendRecv(client.conn, "SMEMBERS", string(quote(key)))
 	if err != nil {
 		return nil, err
 	}
