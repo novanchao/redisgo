@@ -11,7 +11,11 @@ usage:
     cli.Db = 13 // optional
 
     if err := cli.Connect(); err != nil {
-        // error handle
+        // error handling
+    }
+
+    if err := cli.Set([]byte("foo"), []byte("bar")); err != nil {
+        // error handling
     }
 
 Good Luck! :)

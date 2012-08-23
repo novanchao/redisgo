@@ -40,13 +40,14 @@ func openConn(remote string, psw string, db int) (net.Conn, error) {
 	}
 
 	if db != 0 {
+		// if the database number was given, do selection
 		_, err = conn.Write([]byte("SELECT " + strconv.Itoa(db) + "\r\n"))
 		if err != nil {
 			return nil, err
 		}
 		_, err = readResponse(conn)
 	}
-	return conn, err
+	return conn, nil
 }
 
 func readResponse(conn net.Conn) (interface{}, error) {
@@ -59,16 +60,19 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
 	line := bytes.TrimSpace(data[0:n])
 
+	// command executed successfully, return "+OK"
 	if line[0] == '+' {
 		res := line[1:]
 		return res, nil
 	}
 
+	// command executed failed, return "-ERR ..."
 	if bytes.HasPrefix(line, []byte("-ERR")) {
 		errmsg := line[5:]
 		return nil, RError(errmsg)
 	}
 
+	// followed by a number
 	if line[0] == ':' {
 		num, err := strconv.Atoi(string(line[1:]))
 		return num, err
@@ -79,7 +83,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 			return make([]byte, 0), nil
 		}
 
-		list := bytes.Split(line, []byte("\r\n")) // fmt.Printf("list: %v", list) // Debug
+		list := bytes.Split(line, []byte("\r\n"))
 		res := unquote(list[1])
 		return res, nil
 	}
@@ -114,7 +118,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
 func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
 	if conn == nil {
-		return nil, RError("connection is not created yet!")
+		return nil, RError("Connection is not opened yet!")
 	}
 
 	c := strings.Join(args, " ")
@@ -135,8 +139,10 @@ func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
 
 func (client *Client) Connect() error {
 	var err error
-	client.conn, err = openConn(client.Remote, client.Psw, client.Db)
-	return err
+	if client.conn, err = openConn(client.Remote, client.Psw, client.Db); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (client *Client) Disconnect() {
@@ -147,8 +153,7 @@ func quote(in []byte) []byte {
 	var out []byte
 	for _, i := range in {
 		if i == 0x20 {
-			out = append(out, 0x5C)
-			out = append(out, 0x74)
+			out = append(out, 0x5C, 0x74)
 		} else if i == 0x5C {
 			out = append(out, 0x5C, 0x5C)
 		} else {

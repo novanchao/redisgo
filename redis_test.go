@@ -11,12 +11,13 @@ var cli redis.Client
 
 func init() {
 	runtime.GOMAXPROCS(1)
+
 	cli.Remote = "127.0.0.1:6379"
-	// cli.Psw = "passwd"
-	cli.Db = 13
+	// cli.Psw = "lucky" // optional
+	cli.Db = 13 // optional
 
 	if err := cli.Connect(); err != nil {
-		panic("Connect failed")
+		panic(err.Error())
 	}
 }
 
