@@ -62,8 +62,8 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
 	// command executed successfully, return "+OK"
 	if line[0] == '+' {
-		res := line[1:]
-		return res, nil
+		ret := line[1:]
+		return ret, nil
 	}
 
 	// command executed failed, return "-ERR ..."
@@ -84,8 +84,8 @@ func readResponse(conn net.Conn) (interface{}, error) {
 		}
 
 		list := bytes.Split(line, []byte("\r\n"))
-		res := unquote(list[1])
-		return res, nil
+		ret := unquote(list[1])
+		return ret, nil
 	}
 
 	if line[0] == '*' {
@@ -209,8 +209,8 @@ func (client *Client) Keys(arg []byte) ([][]byte, error) {
 		return nil, err
 	}
 
-	res := r.([][]byte)
-	return res, nil
+	ret := r.([][]byte)
+	return ret, nil
 }
 
 func (client *Client) Hmset(key []byte, arg map[string][]byte) error {

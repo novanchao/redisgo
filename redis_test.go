@@ -28,11 +28,11 @@ func TestSet(t *testing.T) {
 }
 
 func ExampleGet() {
-	res, err := cli.Get([]byte("foo"))
+	ret, err := cli.Get([]byte("foo"))
 	if err != nil {
 		panic("GET failed")
 	}
-	fmt.Println(string(res))
+	fmt.Println(string(ret))
 	// Output: b a\ \r
 }
 
@@ -54,11 +54,11 @@ func TestHmset(t *testing.T) {
 }
 
 func TestHmget(t *testing.T) {
-	res, err := cli.Hmget([]byte("hmset"), []byte("key1"), []byte("key2"))
+	ret, err := cli.Hmget([]byte("hmset"), []byte("key1"), []byte("key2"))
 	if err != nil {
 		t.Fatal("HMGET failed", err)
 	}
-	if string(res[0]) != "value1" || string(res[1]) != "value2" {
+	if string(ret[0]) != "value1" || string(ret[1]) != "value2" {
 		t.Fatal("HMGET failed", err)
 	}
 }
