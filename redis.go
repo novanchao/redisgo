@@ -24,7 +24,7 @@ func (err RError) Error() string {
 	return "REDIS ERROR: " + string(err)
 }
 
-func openConn(remote string, psw string, db int) (net.Conn, error) {
+func openConn(remote, psw string, db int) (net.Conn, error) {
 	conn, err := net.Dial("tcp", remote)
 	if err != nil {
 		return nil, err
@@ -147,6 +147,10 @@ func (client *Client) Connect() error {
 
 func (client *Client) Disconnect() {
 	client.conn = nil
+}
+
+func (client *Client) IsActive() bool {
+	return (client.conn != nil)
 }
 
 func quote(in []byte) []byte {
