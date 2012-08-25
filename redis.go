@@ -59,6 +59,7 @@ func readResponse(conn net.Conn) (interface{}, error) {
 	}
 
 	line := bytes.TrimSpace(data[0:n])
+	// fmt.Println(string(line)) // debug
 
 	// command executed successfully, return "+OK"
 	if line[0] == '+' {
@@ -90,8 +91,6 @@ func readResponse(conn net.Conn) (interface{}, error) {
 
 	if line[0] == '*' {
 		list := bytes.Split(line, []byte("\r\n"))
-		// fmt.Printf("list: %v\n", list) // debug
-
 		nsize, err := strconv.Atoi(string(list[0][1:]))
 		if err != nil {
 			return make([]byte, 0), err
@@ -123,7 +122,7 @@ func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
 
 	c := strings.Join(args, " ")
 	c += "\r\n"
-	// fmt.Println(c)
+	// fmt.Println(c) // debug
 
 	_, err := conn.Write([]byte(c))
 	if err != nil {
@@ -154,21 +153,30 @@ func (client *Client) IsActive() bool {
 }
 
 func quote(in []byte) []byte {
-	var out []byte
+	out := make([]byte, 0)
 	for _, i := range in {
-		if i == 0x20 {
-			// quote space to "\t"
-			out = append(out, 0x5C, 0x74)
-		} else if i == 0x5C {
-			// quote "\" to "\\"
-			out = append(out, 0x5C, 0x5C)
-		} else if i == 0x0D {
-			// quote '\r' to "\r"
-			out = append(out, 0x5C, 0x72)
-		} else if i == 0x0A {
-			// quote '\n' to "\n"
-			out = append(out, 0x5C, 0x6E)
-		} else {
+		switch i {
+		case '\a':
+			out = append(out, `\a`...)
+		case '\b':
+			out = append(out, `\b`...)
+		case '\f':
+			out = append(out, `\f`...)
+		case '\n':
+			out = append(out, `\n`...)
+		case '\r':
+			out = append(out, `\r`...)
+		case '\t':
+			out = append(out, `\t`...)
+		case '\v':
+			out = append(out, `\v`...)
+		case 0x0:
+			out = append(out, `\0`...)
+		case 0x20:
+			out = append(out, `\s`...)
+		case '\\':
+			out = append(out, `\\`...)
+		default:
 			out = append(out, i)
 		}
 	}
@@ -176,33 +184,49 @@ func quote(in []byte) []byte {
 }
 
 func unquote(in []byte) []byte {
-	var out []byte
-	lin := len(in)
-
-	for n := 0; n < lin; n++ {
-		if in[n] == 0x5C {
-			if n+1 < len(in) && in[n+1] == 0x5C {
-				// unquote "\\" to "\"
-				out = append(out, 0x5C)
+	out := make([]byte, 0)
+	for n := 0; n < len(in); n++ {
+		if in[n] == '\\' && n+1 < len(in) {
+			switch in[n+1] {
+			case 'a':
+				out = append(out, '\a')
 				n++
-			} else if n+1 < len(in) && in[n+1] == 0x74 {
-				// unquote "\t" to space
+			case 'b':
+				out = append(out, '\b')
+				n++
+			case 'f':
+				out = append(out, '\f')
+				n++
+			case 'n':
+				out = append(out, '\n')
+				n++
+			case 'r':
+				out = append(out, '\r')
+				n++
+			case 't':
+				out = append(out, '\t')
+				n++
+			case 'v':
+				out = append(out, '\v')
+				n++
+			case '0':
+				out = append(out, 0x0)
+				n++
+			case 's':
 				out = append(out, 0x20)
 				n++
-			} else if n+1 < len(in) && in[n+1] == 0x72 {
-				// unquote "\r" to '\r'
-				out = append(out, 0x0D)
+			case '\\':
+				out = append(out, '\\')
 				n++
-			} else if n+1 < len(in) && in[n+1] == 0x6E {
-				// unquote "\n" to '\n'
-				out = append(out, 0x0A)
-				n++
+			default:
+				out = append(out, in[n])
 			}
 		} else {
 			out = append(out, in[n])
 		}
 	}
 	return out
+	return in
 }
 
 // General Commands

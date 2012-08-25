@@ -22,7 +22,8 @@ func init() {
 }
 
 func TestSet(t *testing.T) {
-	if err := cli.Set([]byte("foo"), []byte("b a\\ \\r")); err != nil {
+	in := []byte{0x5A, 0x20, 0x5A}
+	if err := cli.Set([]byte("foo"), in); err != nil {
 		t.Fatal("SET failed", err)
 	}
 }
@@ -33,7 +34,7 @@ func ExampleGet() {
 		panic("GET failed")
 	}
 	fmt.Println(string(ret))
-	// Output: b a\ \r
+	// Output: Z Z
 }
 
 func TestKeys(t *testing.T) {
