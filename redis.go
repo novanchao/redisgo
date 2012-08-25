@@ -157,9 +157,17 @@ func quote(in []byte) []byte {
 	var out []byte
 	for _, i := range in {
 		if i == 0x20 {
+			// quote space to "\t"
 			out = append(out, 0x5C, 0x74)
 		} else if i == 0x5C {
+			// quote "\" to "\\"
 			out = append(out, 0x5C, 0x5C)
+		} else if i == 0x0D {
+			// quote '\r' to "\r"
+			out = append(out, 0x5C, 0x72)
+		} else if i == 0x0A {
+			// quote '\n' to "\n"
+			out = append(out, 0x5C, 0x6E)
 		} else {
 			out = append(out, i)
 		}
@@ -174,10 +182,20 @@ func unquote(in []byte) []byte {
 	for n := 0; n < lin; n++ {
 		if in[n] == 0x5C {
 			if n+1 < len(in) && in[n+1] == 0x5C {
+				// unquote "\\" to "\"
 				out = append(out, 0x5C)
 				n++
 			} else if n+1 < len(in) && in[n+1] == 0x74 {
+				// unquote "\t" to space
 				out = append(out, 0x20)
+				n++
+			} else if n+1 < len(in) && in[n+1] == 0x72 {
+				// unquote "\r" to '\r'
+				out = append(out, 0x0D)
+				n++
+			} else if n+1 < len(in) && in[n+1] == 0x6E {
+				// unquote "\n" to '\n'
+				out = append(out, 0x0A)
 				n++
 			}
 		} else {
