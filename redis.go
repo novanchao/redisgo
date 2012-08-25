@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	bufSize = 1024
+	bufSize = 1024000
 )
 
 type Client struct {
