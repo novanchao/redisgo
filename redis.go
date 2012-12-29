@@ -20,7 +20,6 @@ type Client struct {
 	Db     int
 
 	conn   net.Conn
-    bufrd  bufio.Reader
 }
 
 func openConn(remote, psw string, db int) (net.Conn, error) {
