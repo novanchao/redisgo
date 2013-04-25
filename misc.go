@@ -1,7 +1,6 @@
 package redis
 
-import (
-)
+import ()
 
 func quote(in []byte) []byte {
 	out := make([]byte, 0)
