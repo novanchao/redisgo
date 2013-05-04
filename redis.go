@@ -62,7 +62,6 @@ func readLine(bufrd *bufio.Reader) ([]byte, error) {
 
 func readResponse(bufrd *bufio.Reader) (interface{}, error) {
 	line, err := readLine(bufrd)
-	// fmt.Println(string(line)) // debug
 	if err != nil {
 		return nil, err
 	}
@@ -155,35 +154,35 @@ func sendRecv(conn net.Conn, args ...string) (interface{}, error) {
 	return r, nil
 }
 
-func (client *Client) Connect() error {
+func (c *Client) Connect() error {
 	var err error
-	if client.conn, err = openConn(client.Remote, client.Psw, client.Db); err != nil {
+	if c.conn, err = openConn(c.Remote, c.Psw, c.Db); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (client *Client) Disconnect() {
-	client.conn = nil
+func (c *Client) Disconnect() {
+	c.conn = nil
 }
 
-func (client *Client) IsActive() bool {
-	return (client.conn != nil)
+func (c *Client) IsActive() bool {
+	return (c.conn != nil)
 }
 
 // General Commands
-func (client *Client) Select(db int) error {
-	_, err := sendRecv(client.conn, "SELECT", strconv.Itoa(db))
+func (c *Client) Select(db int) error {
+	_, err := sendRecv(c.conn, "SELECT", strconv.Itoa(db))
 	return err
 }
 
-func (client *Client) Set(key []byte, value []byte) error {
-	_, err := sendRecv(client.conn, "SET", string(quote(key)), string(quote(value)))
+func (c *Client) Set(key []byte, value []byte) error {
+	_, err := sendRecv(c.conn, "SET", string(quote(key)), string(quote(value)))
 	return err
 }
 
-func (client *Client) Get(key []byte) ([]byte, error) {
-	r, err := sendRecv(client.conn, "GET", string(quote(key)))
+func (c *Client) Get(key []byte) ([]byte, error) {
+	r, err := sendRecv(c.conn, "GET", string(quote(key)))
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +190,8 @@ func (client *Client) Get(key []byte) ([]byte, error) {
 	return r.([]byte), nil
 }
 
-func (client *Client) Keys(arg []byte) ([][]byte, error) {
-	r, err := sendRecv(client.conn, "KEYS", string(quote(arg)))
+func (c *Client) Keys(arg []byte) ([][]byte, error) {
+	r, err := sendRecv(c.conn, "KEYS", string(quote(arg)))
 	if err != nil {
 		return nil, err
 	}
@@ -201,45 +200,45 @@ func (client *Client) Keys(arg []byte) ([][]byte, error) {
 	return ret, nil
 }
 
-func (client *Client) Hmset(key []byte, arg map[string][]byte) error {
-	c := make([]string, 0)
-	c = append(c, "HMSET", string(quote(key)))
+func (c *Client) Hmset(key []byte, arg map[string][]byte) error {
+	cm := make([]string, 0)
+	cm = append(cm, "HMSET", string(quote(key)))
 	for k, v := range arg {
-		c = append(c, k, string(quote(v)))
+		cm = append(cm, k, string(quote(v)))
 	}
 
-	c = append(c, "\r\n")
-	_, err := sendRecv(client.conn, c...)
+	cm = append(cm, "\r\n")
+	_, err := sendRecv(c.conn, cm...)
 	return err
 }
 
-func (client *Client) Hmget(key []byte, field ...[]byte) ([][]byte, error) {
-	c := make([]string, 0)
-	c = append(c, "HMGET", string(quote(key)))
+func (c *Client) Hmget(key []byte, field ...[]byte) ([][]byte, error) {
+	cm := make([]string, 0)
+	cm = append(cm, "HMGET", string(quote(key)))
 	for _, f := range field {
-		c = append(c, string(quote(f)))
+		cm = append(cm, string(quote(f)))
 	}
 
-	r, err := sendRecv(client.conn, c...)
+	r, err := sendRecv(c.conn, cm...)
 	if err != nil {
 		return make([][]byte, 0), err
 	}
 	return r.([][]byte), nil
 }
 
-func (client *Client) Sadd(key []byte, members ...[]byte) (int, error) {
-	c := make([]string, 0)
-	c = append(c, "SADD", string(quote(key)))
+func (c *Client) Sadd(key []byte, members ...[]byte) (int, error) {
+	cm := make([]string, 0)
+	cm = append(cm, "SADD", string(quote(key)))
 	for _, m := range members {
-		c = append(c, string(quote(m)))
+		cm = append(cm, string(quote(m)))
 	}
 
-	num, err := sendRecv(client.conn, c...)
+	num, err := sendRecv(c.conn, cm...)
 	return num.(int), err
 }
 
-func (client *Client) Smembers(key []byte) ([][]byte, error) {
-	r, err := sendRecv(client.conn, "SMEMBERS", string(quote(key)))
+func (c *Client) Smembers(key []byte) ([][]byte, error) {
+	r, err := sendRecv(c.conn, "SMEMBERS", string(quote(key)))
 	if err != nil {
 		return nil, err
 	}
